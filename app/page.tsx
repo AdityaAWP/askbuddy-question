@@ -1,64 +1,87 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { ArrowRight } from "lucide-react"
+
+import Footer from "@/components/footer";
+import Header from "@/components/header";
+import RoomsLanding from "@/components/rooms-landing";
+import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import Link from "next/link";
+import hero from '../public/images/hero.png'
+import soloImage from '../public/images/solo.jpeg'
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
-      <div className="container mx-auto px-4 py-16 md:py-24">
-        <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            <span className="text-red-500">Q</span>
-            <span className="text-yellow-500">U</span>
-            <span className="text-green-500">E</span>
-            <span className="text-blue-500">S</span>
-            <span className="text-purple-500">T</span>
-            <span className="text-white">IONS</span>
-          </h1>
-          <p className="text-xl text-gray-300 mb-8">
-            Create a virtual table, invite your friends, and let the conversation flow with randomly generated question
-            cards. Just like a game night, but with thought-provoking questions!
+    <div>
+       <main className="min-h-screen bg-[#004647]">
+      {/* Header */}
+      <Header/>
+      {/* Hero Section */}
+      <section
+        className="bg-red-100 bg-center bg-cover min-h-[100vh]"
+        style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.4)),url(${hero.src})` }}
+      >
+        <div className="flex flex-col items-center justify-center">
+          <div className=" -mt-28 h-screen mb-4"></div>
+          <p className="text-white text-xl md:text-3xl font-medium tracking-wide text-center">
+            Talk Better, Connect Deeper !!
           </p>
+        </div>
+      </section>
+      <section>
+        <RoomsLanding/>
+      </section>
+      <section
+        className="mx-4 md:mx-10 mb-16 md:mb-32 min-h-[50vh] md:min-h-[70vh] flex items-center flex-col justify-center rounded-2xl gap-8 md:gap-20 text-white"
+        style={{
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.75)), url(${soloImage.src})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl text-center font-black px-4 md:px-8 max-w-[90%] md:max-w-[75%]">
+          Lets Us To Give You A Question
+        </h1>
+        <Button
+          size="lg"
+          className="bg-[#f2efde] hover:bg-white text-black px-6 py-4 md:px-8 md:py-6 text-base md:text-lg rounded-full"
+        >
+          Get The Question
+        </Button>
+      </section>
 
-          <div className="flex flex-col md:flex-row gap-4 justify-center mb-12">
-            <Link href="/create-room">
-              <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white px-8 py-6 text-lg rounded-full">
-                Create a Room <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-            <Link href="/join">
-              <Button
-                variant="outline"
-                size="lg"
-                className="px-8 py-6 text-lg rounded-full border-gray-600 text-gray-300 hover:bg-gray-800"
-              >
-                Join a Room
-              </Button>
-            </Link>
+      {/* About Section */}
+      <section className="container mx-auto mb-32 px-4 py-8">
+        <div className="grid md:grid-cols-2 gap-8">
+          <div className="bg-[#f2efde] p-4 md:p-6 rounded-3xl">
+            <div className="inline-block bg-white text-black px-4 py-1 rounded-full text-sm font-medium mb-4 md:mb-6">
+              PDKT
+            </div>
+            <h2 className="text-black text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-4 md:mb-6">
+              ASK BUDDY
+              <br />
+              HELP YOU
+              <br />
+              RIZZ
+              <br />
+              YOUR CRUSH
+            </h2>
+            <p className="text-black text-base md:text-lg mb-4">
+              Using a combo of science and tech, we connect you with humans that match your energy. Wherever you are,
+              whatever you're into, make new friends your way.
+            </p>
           </div>
-
-          <div className="relative mt-16 mb-8">
-            <div className="w-64 h-64 md:w-80 md:h-80 mx-auto rounded-full bg-green-800 border-8 border-brown-800 shadow-2xl flex items-center justify-center">
-              <div className="w-48 h-48 md:w-64 md:h-64 rounded-full bg-green-700 border-4 border-brown-700 flex items-center justify-center">
-                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-green-600 border-2 border-brown-600 flex items-center justify-center">
-                  <div className="text-2xl md:text-3xl font-bold text-yellow-400">DEAL ME IN</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Decorative cards */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-[120px] -translate-y-[140px] transform rotate-[-30deg]">
-              <div className="w-16 h-24 bg-red-600 rounded-lg border-2 border-white shadow-lg"></div>
-            </div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-[20px] -translate-y-[160px] transform rotate-[15deg]">
-              <div className="w-16 h-24 bg-blue-600 rounded-lg border-2 border-white shadow-lg"></div>
-            </div>
-            <div className="absolute top-1/2 left-1/2 translate-x-[80px] -translate-y-[130px] transform rotate-[40deg]">
-              <div className="w-16 h-24 bg-yellow-500 rounded-lg border-2 border-white shadow-lg"></div>
-            </div>
+          <div className="hidden md:block relative w-full rounded-3xl overflow-hidden">
+            <Image
+              src="/images/couple.png"
+              alt="Two people talking and smiling"
+              fill
+              className="object-cover"
+              sizes="50vw"
+            />
           </div>
         </div>
-      </div>
+      </section>
+      <Footer/>
+    </main>
     </div>
   )
 }

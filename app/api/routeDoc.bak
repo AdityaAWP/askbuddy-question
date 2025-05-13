@@ -1,0 +1,3 @@
+POST login : /api/login
+POST register : /api/register
+

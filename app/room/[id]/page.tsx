@@ -15,6 +15,7 @@ import { getGuestUser } from "@/lib/guest-session"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { addQuestion, startGame, swapQuestion } from "@/app/actions/room-actions"
+import Header from "@/components/header"
 
 export default function RoomPage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -412,7 +413,7 @@ export default function RoomPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white overflow-hidden">
+    <div className="min-h-screen bg-[#004647] text-white overflow-hidden">
       {/* Table header */}
       <header className="bg-gray-800 p-4 border-b border-gray-700">
         <div className="container mx-auto flex justify-between items-center">
@@ -490,7 +491,7 @@ export default function RoomPage({ params }: { params: { id: string } }) {
               </div>
             </div>
           ) : (
-            <div className="relative w-[95vw] h-[95vw] md:w-[80vw] md:h-[80vw] lg:w-[70vw] lg:h-[70vw] xl:w-[60vw] xl:h-[60vw] max-w-[800px] max-h-[800px]">
+            <div className="relative w-[80vw] h-[80vw] md:w-[70vw] md:h-[70vw] lg:w-[70vw] lg:h-[70vw] xl:w-[60vw] xl:h-[60vw] max-w-[600px] max-h-[600px]">
               {/* Outer table border */}
               <div className="absolute inset-0 rounded-full bg-yellow-900 border-8 border-yellow-800"></div>
 
@@ -519,7 +520,7 @@ export default function RoomPage({ params }: { params: { id: string } }) {
                   key={player.id}
                   player={{
                     ...player,
-                    name: player.displayName, // Use the display name without the guest ID
+                    name: player.displayName,
                   }}
                   questions={questions.filter((q) => q.current_owner_id === player.id)}
                   position={{ x: player.x, y: player.y }}
@@ -704,19 +705,17 @@ export default function RoomPage({ params }: { params: { id: string } }) {
         )}
 
         {/* Game instructions - only shown during setup */}
-        {gamePhase === "setup" && !showControls && !minimizeBoard && (
-          <div className="absolute top-4 left-4 bg-gray-800 border border-gray-700 rounded-lg p-4 shadow-xl max-w-md z-50">
-            <h3 className="font-bold text-lg mb-2 text-yellow-400">Game Setup</h3>
-            <p className="text-gray-300 mb-3">Welcome to your question card game! Follow these steps to get started:</p>
-            <ol className="list-decimal list-inside text-gray-300 space-y-1 ml-2">
-              <li>Add your questions using the control panel</li>
-              <li>Share the room code with friends so they can join</li>
-              <li>Wait for the host to start the game</li>
-              <li>During the game, questions will be swapped between players</li>
-              <li>Click on any player to see their current questions</li>
-            </ol>
-          </div>
-        )}
+          {/* // <div className="absolute top-4 left-4 bg-gray-800 border border-gray-700 rounded-lg p-4 shadow-xl max-w-md z-50">
+          //   <h3 className="font-bold text-lg mb-2 text-yellow-400">Game Setup</h3>
+          //   <p className="text-gray-300 mb-3">Welcome to your question card game! Follow these steps to get started:</p>
+          //   <ol className="list-decimal list-inside text-gray-300 space-y-1 ml-2">
+          //     <li>Add your questions using the control panel</li>
+          //     <li>Share the room code with friends so they can join</li>
+          //     <li>Wait for the host to start the game</li>
+          //     <li>During the game, questions will be swapped between players</li>
+          //     <li>Click on any player to see their current questions</li>
+          //   </ol>
+          // </div> */}
       </div>
     </div>
   )
