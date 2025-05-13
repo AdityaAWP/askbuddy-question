@@ -72,7 +72,7 @@ export default function CreateRoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#004647] flex items-center justify-center p-4">
       <Card className="w-full max-w-md bg-gray-800 border-gray-700 text-white">
         <CardHeader className="border-b border-gray-700">
           <Link href="/" className="text-gray-400 hover:text-gray-300 inline-flex items-center mb-2">
