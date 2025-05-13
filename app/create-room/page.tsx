@@ -4,121 +4,156 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import { useToast } from "@/hooks/use-toast"
-import { createGuestUser, getGuestUser } from "@/lib/guest-session"
-import { createRoom } from "@/app/actions/room-actions"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { supabase, generateGuestId, generateRoomCode } from "@/lib/supabase"
 
-export default function CreateRoomPage() {
+export default function Home() {
   const router = useRouter()
-  const [roomName, setRoomName] = useState("")
-  const [playerName, setPlayerName] = useState("")
-  const [isCreating, setIsCreating] = useState(false)
-  const { toast } = useToast()
+  const [roomCode, setRoomCode] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  // Pre-fill player name if guest user exists
+  // Set guest ID in localStorage if it doesn't exist
   useEffect(() => {
-    const guestUser = getGuestUser()
-    if (guestUser) {
-      setPlayerName(guestUser.name)
+    if (!localStorage.getItem("guestId")) {
+      localStorage.setItem("guestId", generateGuestId())
     }
   }, [])
 
-  const handleCreateRoom = async () => {
-    if (!roomName.trim() || !playerName.trim()) return
-
-    setIsCreating(true)
-
+  const createRoom = async () => {
     try {
-      // Create or get guest user
-      let guestUser = getGuestUser()
+      setLoading(true)
+      setError("")
 
-      if (!guestUser || guestUser.name !== playerName) {
-        // Create a new guest user with the current name
-        guestUser = createGuestUser(playerName)
+      const guestId = localStorage.getItem("guestId")
+      if (!guestId) {
+        throw new Error("Guest ID not found")
       }
 
-      // Create form data for server action
-      const formData = new FormData()
-      formData.append("roomName", roomName)
-      formData.append("playerName", playerName)
-      formData.append("guestId", guestUser.id)
+      const newRoomCode = generateRoomCode()
 
-      // Call server action to create room
-      const result = await createRoom(formData)
+      // Insert new room
+      const { data: roomData, error: roomError } = await supabase
+        .from("rooms")
+        .insert({
+          room_code: newRoomCode,
+          created_by: guestId,
+          status: "waiting",
+        })
+        .select()
+        .single()
 
-      if (result.error) {
-        throw new Error(result.error)
-      }
+      if (roomError) throw roomError
 
-      toast({
-        title: "Room created!",
-        description: "Your room has been created successfully.",
+      // Add creator to room_users
+      const { error: userError } = await supabase.from("room_users").insert({
+        room_id: roomData.id,
+        guest_id: guestId,
       })
 
-      router.push(`/room/${result.roomId}`)
-    } catch (error: any) {
-      toast({
-        title: "Error creating room",
-        description: error.message,
-        variant: "destructive",
-      })
+      if (userError) throw userError
+
+      router.push(`/roomss/${newRoomCode}`)
+    } catch (err: any) {
+      console.error("Error creating room:", err)
+      setError(err.message || "Failed to create room")
     } finally {
-      setIsCreating(false)
+      setLoading(false)
+    }
+  }
+
+  const joinRoom = async () => {
+    try {
+      setLoading(true)
+      setError("")
+
+      if (!roomCode.trim()) {
+        throw new Error("Please enter a room code")
+      }
+
+      const guestId = localStorage.getItem("guestId")
+      if (!guestId) {
+        throw new Error("Guest ID not found")
+      }
+
+      // Find room by code
+      const { data: roomData, error: roomError } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("room_code", roomCode.toUpperCase())
+        .single()
+
+      if (roomError) throw new Error("Room not found")
+
+      // Check if user is already in the room
+      const { data: existingUser } = await supabase
+        .from("room_users")
+        .select("*")
+        .eq("room_id", roomData.id)
+        .eq("guest_id", guestId)
+        .single()
+
+      // Add user to room if not already there
+      if (!existingUser) {
+        const { error: userError } = await supabase.from("room_users").insert({
+          room_id: roomData.id,
+          guest_id: guestId,
+        })
+
+        if (userError) throw userError
+      }
+
+      router.push(`/roomss/${roomCode}`)
+    } catch (err: any) {
+      console.error("Error joining room:", err)
+      setError(err.message || "Failed to join room")
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#004647] flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-gray-800 border-gray-700 text-white">
-        <CardHeader className="border-b border-gray-700">
-          <Link href="/" className="text-gray-400 hover:text-gray-300 inline-flex items-center mb-2">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to home
-          </Link>
-          <CardTitle className="text-2xl text-red-500">Create a New Room</CardTitle>
-          <CardDescription className="text-gray-400">
-            Set up your question room and invite your friends to join.
-          </CardDescription>
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-slate-100">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl text-center">Question Card Game</CardTitle>
+          <CardDescription className="text-center">Create or join a room to play with friends</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 pt-6">
-          <div className="space-y-2">
-            <Label htmlFor="room-name" className="text-gray-300">
-              Room Name
-            </Label>
-            <Input
-              id="room-name"
-              placeholder="e.g., Friday Night Questions"
-              value={roomName}
-              onChange={(e) => setRoomName(e.target.value)}
-              className="bg-gray-700 border-gray-600 text-white"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="player-name" className="text-gray-300">
-              Your Display Name
-            </Label>
-            <Input
-              id="player-name"
-              placeholder="e.g., Alex"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              className="bg-gray-700 border-gray-600 text-white"
-            />
-          </div>
+        <CardContent>
+          <Tabs defaultValue="create" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="create">Create Room</TabsTrigger>
+              <TabsTrigger value="join">Join Room</TabsTrigger>
+            </TabsList>
+            <TabsContent value="create" className="space-y-4 mt-4">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create a new game room and invite your friends to join
+                </p>
+                <Button onClick={createRoom} disabled={loading} className="w-full">
+                  {loading ? "Creating..." : "Create New Room"}
+                </Button>
+              </div>
+            </TabsContent>
+            <TabsContent value="join" className="space-y-4 mt-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Input placeholder="Enter Room Code" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
+                </div>
+                <Button onClick={joinRoom} disabled={loading || !roomCode.trim()} className="w-full">
+                  {loading ? "Joining..." : "Join Room"}
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          {error && <div className="mt-4 p-2 bg-red-50 text-red-500 rounded text-sm text-center">{error}</div>}
         </CardContent>
-        <CardFooter className="border-t border-gray-700 pt-4">
-          <Button
-            className="w-full bg-red-600 hover:bg-red-700 text-white"
-            onClick={handleCreateRoom}
-            disabled={isCreating || !roomName.trim() || !playerName.trim()}
-          >
-            {isCreating ? "Creating Room..." : "Create Room"}
-          </Button>
+        <CardFooter className="flex justify-center text-sm text-muted-foreground">
+          Create 3 question cards and exchange them with other players!
         </CardFooter>
       </Card>
-    </div>
+    </main>
   )
 }

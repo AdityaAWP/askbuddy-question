@@ -1,6 +1,17 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Initialize the Supabase client
+export const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+)
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Generate a random guest ID
+export const generateGuestId = () => {
+  return `guest_${Math.random().toString(36).substring(2, 10)}`
+}
+
+// Generate a random room code
+export const generateRoomCode = () => {
+  return Math.random().toString(36).substring(2, 8).toUpperCase()
+}
