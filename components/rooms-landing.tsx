@@ -18,18 +18,10 @@ const RoomsLanding = () => {
           <div className="flex flex-col md:flex-row gap-4 justify-center mb-12">
             <Link href="/create-room">
               <Button size="lg" className="bg-[#f2efde] hover:bg-white text-black px-8 py-6 text-lg rounded-full">
-                Create a Room <ArrowRight className="ml-2 h-5 w-5" />
+                Multiplayer <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Link href="/join">
-              <Button
-                variant="outline"
-                size="lg"
-                className="px-8 py-6 text-lg rounded-full border-gray-600 text-gray-300 hover:bg-gray-800"
-              >
-                Join a Room
-              </Button>
-            </Link>
+
           </div>
 
           <div className="relative mt-16 mb-8">

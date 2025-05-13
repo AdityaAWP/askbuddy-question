@@ -114,7 +114,7 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-slate-100">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4  bg-[#004647]">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl text-center">Question Card Game</CardTitle>

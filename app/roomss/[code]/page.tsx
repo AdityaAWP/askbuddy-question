@@ -9,9 +9,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { AlertCircle, Copy, Users } from "lucide-react"
+import { AlertCircle, Copy, Users, X, HelpCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
+import Image from "next/image"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import Header from "@/components/header"
+import Footer from "@/components/footer"
 
 export default function RoomPage({ params }: { params: { code: string } }) {
   const router = useRouter()
@@ -27,9 +43,64 @@ export default function RoomPage({ params }: { params: { code: string } }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [gameStarted, setGameStarted] = useState(false)
+  const [selectedCard, setSelectedCard] = useState<any>(null)
+  const [showGuide, setShowGuide] = useState(false)
+
+  // Generate guestId if not exists
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      let currentGuestId = localStorage.getItem("guestId")
+      if (!currentGuestId) {
+        currentGuestId = Math.random().toString(36).substring(2) + Date.now().toString(36)
+        localStorage.setItem("guestId", currentGuestId)
+      }
+    }
+  }, [])
 
   const guestId = typeof window !== "undefined" ? localStorage.getItem("guestId") : null
   const isRoomCreator = roomData?.created_by === guestId
+
+  // Add user to room when component mounts
+  useEffect(() => {
+    const addUserToRoom = async () => {
+      if (!guestId || !roomData) return
+
+      try {
+        // Check if user already exists in room
+        const { data: existingUser } = await supabase
+          .from("room_users")
+          .select("*")
+          .eq("room_id", roomData.id)
+          .eq("guest_id", guestId)
+          .single()
+
+        if (!existingUser) {
+          // Add user to room if not exists
+          const { error } = await supabase.from("room_users").insert({
+            room_id: roomData.id,
+            guest_id: guestId,
+            joined_at: new Date().toISOString(),
+          })
+
+          if (error) throw error
+
+          // Notify other users
+          const roomChannel = supabase.channel(`room:${roomCode}`)
+          roomChannel.send({
+            type: "broadcast",
+            event: "user_joined",
+            payload: { guest_id: guestId },
+          })
+        }
+      } catch (err: any) {
+        console.error("Error adding user to room:", err)
+      }
+    }
+
+    if (roomData) {
+      addUserToRoom()
+    }
+  }, [guestId, roomData, roomCode])
 
   // Initialize Supabase Realtime subscription
   useEffect(() => {
@@ -64,6 +135,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           .eq("room_id", room.id)
 
         if (usersError) throw usersError
+        console.log("Room users:", roomUsers) // Debug log
         setUsers(roomUsers)
 
         // Get questions for this room
@@ -109,19 +181,46 @@ export default function RoomPage({ params }: { params: { code: string } }) {
         // Handle presence sync
       })
       .on("broadcast", { event: "user_joined" }, (payload) => {
-        // Refresh user list when someone joins
+        console.log("User joined event received:", payload) // Debug log
         fetchRoomData()
       })
       .on("broadcast", { event: "question_added" }, (payload) => {
-        // Refresh questions when a new one is added
         fetchRoomData()
       })
       .on("broadcast", { event: "game_started" }, (payload) => {
-        // Update game state when game starts
         setGameStarted(true)
         fetchRoomData()
       })
-      .subscribe()
+      .on("postgres_changes", { 
+        event: "*", 
+        schema: "public", 
+        table: "room_users" 
+      }, (payload) => {
+        console.log("Room users changed:", payload) // Debug log
+        fetchRoomData()
+      })
+      .on("postgres_changes", { 
+        event: "*", 
+        schema: "public", 
+        table: "question_cards" 
+      }, (payload) => {
+        fetchRoomData()
+      })
+      .on("postgres_changes", { 
+        event: "*", 
+        schema: "public", 
+        table: "game_sessions" 
+      }, (payload) => {
+        fetchRoomData()
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await roomChannel.track({
+            user_id: guestId,
+            online_at: new Date().toISOString(),
+          })
+        }
+      })
 
     return () => {
       supabase.removeChannel(roomChannel)
@@ -323,9 +422,10 @@ export default function RoomPage({ params }: { params: { code: string } }) {
   }
 
   return (
-    <main className="min-h-screen p-4 bg-gradient-to-b from-slate-50 to-slate-100">
+    <main className="min-h-screen pt-4 bg-[#004647]">
+      <Header/>
       <div className="max-w-4xl mx-auto">
-        <Card className="mb-6">
+        <Card className="mb-8 mt-20">
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle>Room: {roomCode}</CardTitle>
@@ -334,10 +434,51 @@ export default function RoomPage({ params }: { params: { code: string } }) {
                   <Copy className="h-4 w-4 mr-2" />
                   Copy Code
                 </Button>
-                <Button variant="default" size="sm" onClick={copyRoomLink}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy Link
-                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="hover:bg-slate-100">
+                      <HelpCircle className="h-5 w-5" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>How to Play</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 p-4">
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Joining the Game</h4>
+                        <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                          <li>Share the room code with your friends</li>
+                          <li>Players can join using the room code</li>
+                        </ul>
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Creating Questions</h4>
+                        <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                          <li>Each player must create 3 question cards</li>
+                          <li>Questions should be thought-provoking and fun</li>
+                          <li>Wait for all players to create their questions</li>
+                        </ul>
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Starting the Game</h4>
+                        <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                          <li>Only the room host can start the game</li>
+                          <li>Game can only start when all players have created 3 questions</li>
+                          <li>Questions will be distributed randomly to players</li>
+                        </ul>
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="font-medium">During the Game</h4>
+                        <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                          <li>Click on cards around the table to view questions</li>
+                          <li>Read and discuss the questions with other players</li>
+                          <li>Have fun and enjoy the conversation!</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
             <CardDescription className="flex items-center">
@@ -346,13 +487,76 @@ export default function RoomPage({ params }: { params: { code: string } }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {users.map((user, index) => (
-                <Badge key={user.id} variant={user.guest_id === guestId ? "default" : "outline"}>
-                  Player {index + 1} {user.guest_id === guestId ? "(You)" : ""}
-                  {user.guest_id === roomData.created_by ? " (Host)" : ""}
-                </Badge>
-              ))}
+            <div className="relative w-full aspect-[1/1] max-w-2xl mx-auto bg-green-800 rounded-full border-8 border-brown-800 mb-8 shadow-2xl">
+              {/* Efek cahaya pada meja */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-700 to-green-900 opacity-50"></div>
+              
+              {/* Meja Casino */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-white text-2xl font-bold drop-shadow-lg">{roomCode}</div>
+              </div>
+              
+              {/* Pemain mengelilingi meja */}
+              <div className="absolute inset-0">
+                {users.map((user, index) => {
+                  const angle = (index * (360 / users.length)) * (Math.PI / 180);
+                  const radius = 42;
+                  const x = 50 + radius * Math.cos(angle);
+                  const y = 50 + radius * Math.sin(angle);
+                  
+                  // Filter kartu untuk pemain ini
+                  const playerCards = receivedCards.filter(card => card.guest_id === user.guest_id);
+                  
+                  return (
+                    <div
+                      key={user.id}
+                      className="absolute transform -translate-x-1/2 -translate-y-1/2"
+                      style={{
+                        left: `${x}%`,
+                        top: `${y}%`,
+                      }}
+                    >
+                      <div className="relative">
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                          user.guest_id === guestId ? 'bg-blue-500' : 'bg-gray-600'
+                        } shadow-lg border-2 border-white`}>
+                          <span className="text-white font-bold">P{index + 1}</span>
+                        </div>
+                        <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap text-white text-sm drop-shadow-md">
+                          {user.guest_id === guestId ? '(Anda)' : ''}
+                          {user.guest_id === roomData.created_by ? ' (Host)' : ''}
+                        </div>
+                        
+                        {/* Kartu di samping avatar */}
+                        {gameStarted && playerCards.length > 0 && (
+                          <div
+                            className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:scale-110 transition-transform"
+                            style={{
+                              left: `${x}%`,
+                              top: `${y}%`,
+                            }}
+                            onClick={() => setSelectedCard({ cards: playerCards, playerIndex: index + 1 })}
+                          >
+                            <div className="relative w-12 h-16">
+                              <Image
+                                src="/images/card.png"
+                                alt="Question Card"
+                                fill
+                                className="object-contain drop-shadow-lg"
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                {/* <span className="text-white font-bold text-sm drop-shadow-md">
+                                  {playerCards.length}
+                                </span> */}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <Separator className="my-4" />
@@ -407,22 +611,35 @@ export default function RoomPage({ params }: { params: { code: string } }) {
                 )}
               </div>
             ) : (
-              <div className="space-y-6">
-                <h3 className="text-lg font-medium">Your Received Question Cards</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {receivedCards.map((card, index) => (
-                    <Card key={index}>
+              <div className="text-center text-muted-foreground">
+                <p>Click on the cards around the table to view questions</p>
+              </div>
+            )}
+
+            {/* Dialog untuk menampilkan pertanyaan */}
+            <Dialog open={!!selectedCard} onOpenChange={() => setSelectedCard(null)}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Player {selectedCard?.playerIndex}'s Questions</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 p-4">
+                  {selectedCard?.cards.map((card: any, index: number) => (
+                    <Card key={index} className="bg-muted">
                       <CardContent className="p-4">
-                        <p className="text-lg">{card.card}</p>
+                        <div className="flex items-start gap-2">
+                          <Badge variant="outline" className="mt-1">Q{index + 1}</Badge>
+                          <p className="text-lg">{card.card}</p>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
                 </div>
-              </div>
-            )}
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
       </div>
+      <Footer/>
     </main>
   )
 }

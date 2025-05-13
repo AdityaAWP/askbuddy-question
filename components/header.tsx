@@ -26,7 +26,7 @@ const Header = () => {
         <div className="hidden md:flex items-center gap-6">
           <div className="flex gap-6">
             <Link href="/create-room" className="hover:text-gray-600 transition-colors">
-              <h1>Create Room</h1>
+              <h1>Multiplayer</h1>
             </Link>
             <Link href="/solo" className="hover:text-gray-600 transition-colors">
               <h1>Solo Mode</h1>
