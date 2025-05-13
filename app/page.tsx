@@ -5,6 +5,8 @@ import RoomsLanding from "@/components/rooms-landing";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
+import hero from '../public/images/hero.png'
+import soloImage from '../public/images/solo.jpeg'
 
 export default function HomePage() {
   return (
@@ -15,10 +17,10 @@ export default function HomePage() {
       {/* Hero Section */}
       <section
         className="bg-red-100 bg-center bg-cover min-h-[100vh]"
-        style={{ backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.4)),url('images/hero.png')" }}
+        style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.4)),url(${hero.src})` }}
       >
         <div className="flex flex-col items-center justify-center">
-          <div className="relative w-full max-w-3xl aspect-[16/13] mb-4"></div>
+          <div className=" -mt-28 h-screen mb-4"></div>
           <p className="text-white text-xl md:text-3xl font-medium tracking-wide text-center">
             Talk Better, Connect Deeper !!
           </p>
@@ -30,7 +32,7 @@ export default function HomePage() {
       <section
         className="mx-4 md:mx-10 mb-16 md:mb-32 min-h-[50vh] md:min-h-[70vh] flex items-center flex-col justify-center rounded-2xl gap-8 md:gap-20 text-white"
         style={{
-          backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.75)), url('images/solo.png')",
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.75)), url(${soloImage.src})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
