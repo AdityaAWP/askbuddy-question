@@ -70,13 +70,6 @@ const Header = () => {
           >
             Solo Mode
           </Link>
-          <Link
-            href="#"
-            className="py-2 border-b border-gray-200 hover:text-gray-600"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            Instruction
-          </Link>
         </nav>
       </div>
     </>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase, generateGuestId, generateRoomCode } from "@/lib/supabase"
+import Header from "@/components/header"
 
 export default function Home() {
   const router = useRouter()
@@ -115,6 +116,7 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4  bg-[#004647]">
+      <Header/>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl text-center">Question Card Game</CardTitle>
