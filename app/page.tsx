@@ -40,12 +40,14 @@ export default function HomePage() {
         <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl text-center font-black px-4 md:px-8 max-w-[90%] md:max-w-[75%]">
           Lets Us To Give You A Question
         </h1>
+        <Link href="/solo">
         <Button
           size="lg"
           className="bg-[#f2efde] hover:bg-white text-black px-6 py-4 md:px-8 md:py-6 text-base md:text-lg rounded-full"
         >
           Get The Question
         </Button>
+        </Link>
       </section>
 
       {/* About Section */}
@@ -65,8 +67,7 @@ export default function HomePage() {
               YOUR CRUSH
             </h2>
             <p className="text-black text-base md:text-lg mb-4">
-              Using a combo of science and tech, we connect you with humans that match your energy. Wherever you are,
-              whatever you're into, make new friends your way.
+             Not sure what to talk about with my crush, let us help!
             </p>
           </div>
           <div className="hidden md:block relative w-full rounded-3xl overflow-hidden">
