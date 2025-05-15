@@ -9,23 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { AlertCircle, Copy, Users, X, HelpCircle } from "lucide-react"
+import { AlertCircle, Copy, Users, HelpCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import Image from "next/image"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 
@@ -45,6 +33,9 @@ export default function RoomPage({ params }: { params: { code: string } }) {
   const [gameStarted, setGameStarted] = useState(false)
   const [selectedCard, setSelectedCard] = useState<any>(null)
   const [showGuide, setShowGuide] = useState(false)
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingText, setEditingText] = useState("")
 
   // Generate guestId if not exists
   useEffect(() => {
@@ -83,14 +74,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           })
 
           if (error) throw error
-
-          // Notify other users
-          const roomChannel = supabase.channel(`room:${roomCode}`)
-          roomChannel.send({
-            type: "broadcast",
-            event: "user_joined",
-            payload: { guest_id: guestId },
-          })
         }
       } catch (err: any) {
         console.error("Error adding user to room:", err)
@@ -100,14 +83,17 @@ export default function RoomPage({ params }: { params: { code: string } }) {
     if (roomData) {
       addUserToRoom()
     }
-  }, [guestId, roomData, roomCode])
+  }, [guestId, roomData])
 
-  // Initialize Supabase Realtime subscription
+  // Initialize Supabase Realtime subscription with improved logic
   useEffect(() => {
     if (!guestId) {
       router.push("/")
       return
     }
+
+    let roomId: string | null = null
+    let subscriptionCleanup: (() => void) | null = null
 
     const fetchRoomData = async () => {
       try {
@@ -122,6 +108,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
 
         if (roomError) throw roomError
         setRoomData(room)
+        roomId = room.id // Store room ID for subscriptions
 
         // Check if game has already started
         if (room.status === "playing") {
@@ -163,6 +150,12 @@ export default function RoomPage({ params }: { params: { code: string } }) {
             setReceivedCards(gameSession)
           }
         }
+
+        // Now that we have the room ID, set up realtime subscriptions
+        if (subscriptionCleanup) {
+          subscriptionCleanup() // Clean up previous subscriptions if they exist
+        }
+        subscriptionCleanup = setupRealtimeSubscriptions(room.id)
       } catch (err: any) {
         console.error("Error fetching room data:", err)
         setError(err.message || "Failed to load room data")
@@ -171,59 +164,181 @@ export default function RoomPage({ params }: { params: { code: string } }) {
       }
     }
 
+    // Set up all realtime subscriptions after we have the room ID
+    const setupRealtimeSubscriptions = (roomId: string) => {
+      console.log("Setting up realtime subscriptions for room:", roomId)
+
+      // Room users subscription
+      const roomUsersSubscription = supabase
+        .channel(`room_users:${roomId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "room_users",
+            filter: `room_id=eq.${roomId}`,
+          },
+          (payload) => {
+            console.log("Room users change received:", payload)
+            // Fetch latest users
+            supabase
+              .from("room_users")
+              .select("*")
+              .eq("room_id", roomId)
+              .then(({ data }) => {
+                if (data) {
+                  console.log("Updated users list:", data)
+                  setUsers(data)
+                }
+              })
+          },
+        )
+        .subscribe((status) => {
+          console.log(`Room users subscription status: ${status}`)
+        })
+
+      // Questions subscription
+      const questionsSubscription = supabase
+        .channel(`question_cards:${roomId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "question_cards",
+            filter: `room_id=eq.${roomId}`,
+          },
+          (payload) => {
+            console.log("Question cards change received:", payload)
+            // Fetch latest questions
+            supabase
+              .from("question_cards")
+              .select("*")
+              .eq("room_id", roomId)
+              .then(({ data }) => {
+                if (data) {
+                  console.log("Updated questions:", data)
+                  setQuestions(data)
+                  // Update my questions
+                  const myCards = data.filter((q: any) => q.guest_id === guestId)
+                  setMyQuestions(myCards)
+                }
+              })
+          },
+        )
+        .subscribe((status) => {
+          console.log(`Question cards subscription status: ${status}`)
+        })
+
+      // Room status subscription
+      const roomsSubscription = supabase
+        .channel(`rooms:${roomId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "rooms",
+            filter: `id=eq.${roomId}`,
+          },
+          (payload) => {
+            console.log("Room update received:", payload)
+            const newRoomData = payload.new as any
+            setRoomData(newRoomData)
+
+            // Check if game status changed to playing
+            if (newRoomData.status === "playing" && !gameStarted) {
+              setGameStarted(true)
+
+              // Fetch received cards when game starts
+              supabase
+                .from("game_sessions")
+                .select("*")
+                .eq("room_id", roomId)
+                .eq("guest_id", guestId)
+                .then(({ data }) => {
+                  if (data) setReceivedCards(data)
+                })
+            }
+          },
+        )
+        .subscribe((status) => {
+          console.log(`Rooms subscription status: ${status}`)
+        })
+
+      // Game sessions subscription
+      const gameSessionsSubscription = supabase
+        .channel(`game_sessions:${roomId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "game_sessions",
+            filter: `room_id=eq.${roomId}`,
+          },
+          (payload) => {
+            console.log("Game session change received:", payload)
+            // Only update if it's related to current user
+            if (payload.new && (payload.new as any).guest_id === guestId) {
+              supabase
+                .from("game_sessions")
+                .select("*")
+                .eq("room_id", roomId)
+                .eq("guest_id", guestId)
+                .then(({ data }) => {
+                  if (data) setReceivedCards(data)
+                })
+            }
+          },
+        )
+        .subscribe((status) => {
+          console.log(`Game sessions subscription status: ${status}`)
+        })
+
+      // Set up presence channel for online status
+      const presenceChannel = supabase.channel(`presence:${roomId}`)
+      presenceChannel
+        .on("presence", { event: "sync" }, () => {
+          // You can use this to show who's online
+          const state = presenceChannel.presenceState()
+          console.log("Presence state:", state)
+        })
+        .on("presence", { event: "join" }, ({ key, newPresences }) => {
+          console.log("User joined:", newPresences)
+        })
+        .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
+          console.log("User left:", leftPresences)
+        })
+        .subscribe(async (status) => {
+          if (status === "SUBSCRIBED") {
+            await presenceChannel.track({
+              user_id: guestId,
+              online_at: new Date().toISOString(),
+            })
+          }
+        })
+
+      // Return cleanup function
+      return () => {
+        console.log("Cleaning up subscriptions")
+        supabase.removeChannel(roomUsersSubscription)
+        supabase.removeChannel(questionsSubscription)
+        supabase.removeChannel(roomsSubscription)
+        supabase.removeChannel(gameSessionsSubscription)
+        supabase.removeChannel(presenceChannel)
+      }
+    }
+
+    // Initial data fetch
     fetchRoomData()
 
-    // Set up realtime subscription for room updates
-    const roomChannel = supabase.channel(`room:${roomCode}`)
-
-    roomChannel
-      .on("presence", { event: "sync" }, () => {
-        // Handle presence sync
-      })
-      .on("broadcast", { event: "user_joined" }, (payload) => {
-        console.log("User joined event received:", payload) // Debug log
-        fetchRoomData()
-      })
-      .on("broadcast", { event: "question_added" }, (payload) => {
-        fetchRoomData()
-      })
-      .on("broadcast", { event: "game_started" }, (payload) => {
-        setGameStarted(true)
-        fetchRoomData()
-      })
-      .on("postgres_changes", { 
-        event: "*", 
-        schema: "public", 
-        table: "room_users" 
-      }, (payload) => {
-        console.log("Room users changed:", payload) // Debug log
-        fetchRoomData()
-      })
-      .on("postgres_changes", { 
-        event: "*", 
-        schema: "public", 
-        table: "question_cards" 
-      }, (payload) => {
-        fetchRoomData()
-      })
-      .on("postgres_changes", { 
-        event: "*", 
-        schema: "public", 
-        table: "game_sessions" 
-      }, (payload) => {
-        fetchRoomData()
-      })
-      .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await roomChannel.track({
-            user_id: guestId,
-            online_at: new Date().toISOString(),
-          })
-        }
-      })
-
+    // Cleanup function
     return () => {
-      supabase.removeChannel(roomChannel)
+      if (subscriptionCleanup) {
+        subscriptionCleanup()
+      }
     }
   }, [roomCode, guestId, router])
 
@@ -242,38 +357,26 @@ export default function RoomPage({ params }: { params: { code: string } }) {
       }
 
       // Add question to database
-      const { error } = await supabase.from("question_cards").insert({
-        room_id: roomData.id,
-        guest_id: guestId,
-        question: newQuestion,
-      })
+      const { data, error } = await supabase
+        .from("question_cards")
+        .insert({
+          room_id: roomData.id,
+          guest_id: guestId,
+          question: newQuestion,
+        })
+        .select()
 
       if (error) throw error
 
-      // Notify other users
-      const roomChannel = supabase.channel(`room:${roomCode}`)
-      roomChannel.send({
-        type: "broadcast",
-        event: "question_added",
-        payload: { guest_id: guestId },
-      })
-
-      // Clear input and refresh questions
+      // Clear input
       setNewQuestion("")
-
-      // Update local state
-      const newCard = {
-        room_id: roomData.id,
-        guest_id: guestId,
-        question: newQuestion,
-      }
-      setMyQuestions([...myQuestions, newCard])
-      setQuestions([...questions, newCard])
 
       toast({
         title: "Question Added",
         description: "Your question card has been added to the game",
       })
+
+      // Note: We don't need to manually update state here as the Postgres Changes subscription will handle it
     } catch (err: any) {
       console.error("Error adding question:", err)
       toast({
@@ -349,20 +452,12 @@ export default function RoomPage({ params }: { params: { code: string } }) {
 
       if (sessionError) throw sessionError
 
-      // Notify all users that game has started
-      const roomChannel = supabase.channel(`room:${roomCode}`)
-      roomChannel.send({
-        type: "broadcast",
-        event: "game_started",
-        payload: { started_by: guestId },
-      })
-
-      setGameStarted(true)
-
       toast({
         title: "Game Started",
         description: "Cards have been distributed to all players",
       })
+
+      // Note: We don't need to manually update state here as the Postgres Changes subscription will handle it
     } catch (err: any) {
       console.error("Error starting game:", err)
       toast({
@@ -402,6 +497,31 @@ export default function RoomPage({ params }: { params: { code: string } }) {
     )
   }
 
+  const handleSaveEdit = async (questionId: string) => {
+    if (!editingText.trim()) return
+
+    const { error } = await supabase.from("question_cards").update({ question: editingText }).eq("id", questionId)
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update question",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setEditingId(null)
+    setEditingText("")
+
+    toast({
+      title: "Updated",
+      description: "Your question has been updated",
+    })
+
+    // Note: We don't need to manually update state here as the Postgres Changes subscription will handle it
+  }
+
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
@@ -423,7 +543,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
 
   return (
     <main className="min-h-screen pt-4 bg-[#004647]">
-      <Header/>
+      <Header />
       <div className="max-w-4xl mx-auto">
         <Card className="mb-8 mt-20">
           <CardHeader>
@@ -490,23 +610,23 @@ export default function RoomPage({ params }: { params: { code: string } }) {
             <div className="relative w-full aspect-[1/1] max-w-2xl mx-auto bg-green-800 rounded-full border-8 border-brown-800 mb-8 shadow-2xl">
               {/* Efek cahaya pada meja */}
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-700 to-green-900 opacity-50"></div>
-              
+
               {/* Meja Casino */}
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-white text-2xl font-bold drop-shadow-lg">{roomCode}</div>
               </div>
-              
+
               {/* Pemain mengelilingi meja */}
               <div className="absolute inset-0">
                 {users.map((user, index) => {
-                  const angle = (index * (360 / users.length)) * (Math.PI / 180);
-                  const radius = 42;
-                  const x = 50 + radius * Math.cos(angle);
-                  const y = 50 + radius * Math.sin(angle);
-                  
+                  const angle = index * (360 / users.length) * (Math.PI / 180)
+                  const radius = 42
+                  const x = 50 + radius * Math.cos(angle)
+                  const y = 50 + radius * Math.sin(angle)
+
                   // Filter kartu untuk pemain ini
-                  const playerCards = receivedCards.filter(card => card.guest_id === user.guest_id);
-                  
+                  const playerCards = receivedCards.filter((card) => card.guest_id === user.guest_id)
+
                   return (
                     <div
                       key={user.id}
@@ -517,16 +637,18 @@ export default function RoomPage({ params }: { params: { code: string } }) {
                       }}
                     >
                       <div className="relative">
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                          user.guest_id === guestId ? 'bg-blue-500' : 'bg-gray-600'
-                        } shadow-lg border-2 border-white`}>
+                        <div
+                          className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                            user.guest_id === guestId ? "bg-blue-500" : "bg-gray-600"
+                          } shadow-lg border-2 border-white`}
+                        >
                           <span className="text-white font-bold">P{index + 1}</span>
                         </div>
                         <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap text-white text-sm drop-shadow-md">
-                          {user.guest_id === guestId ? '(Anda)' : ''}
-                          {user.guest_id === roomData.created_by ? ' (Host)' : ''}
+                          {user.guest_id === guestId ? "(Anda)" : ""}
+                          {user.guest_id === roomData.created_by ? " (Host)" : ""}
                         </div>
-                        
+
                         {/* Kartu di samping avatar */}
                         {gameStarted && playerCards.length > 0 && (
                           <div
@@ -554,7 +676,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
                         )}
                       </div>
                     </div>
-                  );
+                  )
                 })}
               </div>
             </div>
@@ -566,12 +688,40 @@ export default function RoomPage({ params }: { params: { code: string } }) {
                 <div>
                   <h3 className="text-lg font-medium mb-2">Create Your Question Cards ({myQuestions.length}/3)</h3>
                   <div className="space-y-4">
-                    {myQuestions.map((q, index) => (
-                      <Card key={index} className="bg-muted">
-                        <CardContent className="p-4">
-                          <p>{q.question}</p>
-                        </CardContent>
-                      </Card>
+                    {myQuestions.map((q: any, index: number) => (
+                      <div key={q.id} className="flex items-start gap-2 mb-2">
+                        {editingId === q.id ? (
+                          <div className="flex-1">
+                            <Textarea
+                              value={editingText}
+                              onChange={(e) => setEditingText(e.target.value)}
+                              className="w-full"
+                            />
+                            <div className="flex gap-2 mt-1">
+                              <Button size="sm" onClick={() => handleSaveEdit(q.id)}>
+                                Save
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex-1">{q.question}</div>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                setEditingId(q.id)
+                                setEditingText(q.question)
+                              }}
+                            >
+                              Edit
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     ))}
 
                     {myQuestions.length < 3 && (
@@ -627,7 +777,9 @@ export default function RoomPage({ params }: { params: { code: string } }) {
                     <Card key={index} className="bg-muted">
                       <CardContent className="p-4">
                         <div className="flex items-start gap-2">
-                          <Badge variant="outline" className="mt-1">Q{index + 1}</Badge>
+                          <Badge variant="outline" className="mt-1">
+                            Q{index + 1}
+                          </Badge>
                           <p className="text-lg">{card.card}</p>
                         </div>
                       </CardContent>
@@ -639,7 +791,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           </CardContent>
         </Card>
       </div>
-      <Footer/>
+      <Footer />
     </main>
   )
 }
