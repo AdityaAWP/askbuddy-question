@@ -6,7 +6,7 @@ import Header from "@/components/header"
 import Footer from "@/components/footer"
 
 interface Category {
-  id: string // UUID
+  id: string
   name: string
 }
 
@@ -23,7 +23,6 @@ const AskBuddy: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(false)
 
-  // Fetch categories from the Supabase API
   useEffect(() => {
     async function fetchCategories() {
       try {
@@ -41,18 +40,16 @@ const AskBuddy: React.FC = () => {
     fetchCategories()
   }, [])
 
-  // Fetch questions for the selected category
   const fetchQuestionsForCategory = async (categoryId: string) => {
     setIsLoading(true)
-    setQuestions([]) // Clear previous questions
-    setTopic("") // Reset topic when changing categories
+    setQuestions([]) 
+    setTopic("")
 
     try {
       const res = await fetch(`/api/questions?category_id=${categoryId}`)
       const data = await res.json()
       if (Array.isArray(data)) {
         setQuestions(data)
-        // Generate a topic only after questions are loaded
         if (data.length > 0) {
           const randomIndex = Math.floor(Math.random() * data.length)
           setTopic(data[randomIndex].text)
@@ -74,7 +71,7 @@ const AskBuddy: React.FC = () => {
   const openTopicGenerator = async (categoryId: string) => {
     setCurrentCategory(categoryId)
     setShowModal(true)
-    await fetchQuestionsForCategory(categoryId) // Wait for questions to be fetched
+    await fetchQuestionsForCategory(categoryId)
   }
 
   const closeModal = () => {
@@ -83,7 +80,6 @@ const AskBuddy: React.FC = () => {
 
   const generateTopic = () => {
     if (questions.length > 0) {
-      // Select a random question from the fetched questions
       const randomIndex = Math.floor(Math.random() * questions.length)
       setTopic(questions[randomIndex].text)
     } else {
@@ -99,7 +95,6 @@ const AskBuddy: React.FC = () => {
     }
   }
 
-  // Color mapping based on category
   const categoryColors: { [key: string]: string } = {
     pdkt: "from-pink-500 to-rose-500",
     pertemanan: "from-blue-500 to-indigo-500",
@@ -109,7 +104,6 @@ const AskBuddy: React.FC = () => {
     hiburan: "from-cyan-500 to-teal-500",
   }
 
-  // SVG Icons for each category
   const categoryIcons: { [key: string]: React.ReactNode } = {
     pdkt: (
       <path
@@ -174,7 +168,7 @@ const AskBuddy: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {categories.map((category) => {
-            const categoryColor = categoryColors[category.name.toLowerCase()] || "from-gray-500 to-gray-600" // Default color if category is not found
+            const categoryColor = categoryColors[category.name.toLowerCase()] || "from-gray-500 to-gray-600" 
             const categoryIcon = categoryIcons[category.name.toLowerCase()] || <></>
 
             return (
@@ -206,7 +200,6 @@ const AskBuddy: React.FC = () => {
         </div>
       </main>
 
-      {/* Modal */}
       {showModal && (
         <div id="topicModal" className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl w-full max-w-md mx-4 overflow-hidden">

@@ -37,7 +37,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingText, setEditingText] = useState("")
 
-  // Generate guestId if not exists
   useEffect(() => {
     if (typeof window !== "undefined") {
       let currentGuestId = localStorage.getItem("guestId")
@@ -51,13 +50,11 @@ export default function RoomPage({ params }: { params: { code: string } }) {
   const guestId = typeof window !== "undefined" ? localStorage.getItem("guestId") : null
   const isRoomCreator = roomData?.created_by === guestId
 
-  // Add user to room when component mounts
   useEffect(() => {
     const addUserToRoom = async () => {
       if (!guestId || !roomData) return
 
       try {
-        // Check if user already exists in room
         const { data: existingUser } = await supabase
           .from("room_users")
           .select("*")
@@ -66,7 +63,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           .single()
 
         if (!existingUser) {
-          // Add user to room if not exists
           const { error } = await supabase.from("room_users").insert({
             room_id: roomData.id,
             guest_id: guestId,
@@ -85,7 +81,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
     }
   }, [guestId, roomData])
 
-  // Initialize Supabase Realtime subscription with improved logic
   useEffect(() => {
     if (!guestId) {
       router.push("/")
@@ -99,7 +94,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
       try {
         setLoading(true)
 
-        // Get room data
         const { data: room, error: roomError } = await supabase
           .from("rooms")
           .select("*")
@@ -108,24 +102,21 @@ export default function RoomPage({ params }: { params: { code: string } }) {
 
         if (roomError) throw roomError
         setRoomData(room)
-        roomId = room.id // Store room ID for subscriptions
+        roomId = room.id 
 
-        // Check if game has already started
         if (room.status === "playing") {
           setGameStarted(true)
         }
 
-        // Get users in room
         const { data: roomUsers, error: usersError } = await supabase
           .from("room_users")
           .select("*")
           .eq("room_id", room.id)
 
         if (usersError) throw usersError
-        console.log("Room users:", roomUsers) // Debug log
+        console.log("Room users:", roomUsers)
         setUsers(roomUsers)
 
-        // Get questions for this room
         const { data: questionCards, error: questionsError } = await supabase
           .from("question_cards")
           .select("*")
@@ -134,11 +125,9 @@ export default function RoomPage({ params }: { params: { code: string } }) {
         if (questionsError) throw questionsError
         setQuestions(questionCards)
 
-        // Filter my questions
         const myCards = questionCards.filter((q: any) => q.guest_id === guestId)
         setMyQuestions(myCards)
 
-        // Get received cards if game has started
         if (room.status === "playing") {
           const { data: gameSession, error: sessionError } = await supabase
             .from("game_sessions")
@@ -151,9 +140,8 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           }
         }
 
-        // Now that we have the room ID, set up realtime subscriptions
         if (subscriptionCleanup) {
-          subscriptionCleanup() // Clean up previous subscriptions if they exist
+          subscriptionCleanup() 
         }
         subscriptionCleanup = setupRealtimeSubscriptions(room.id)
       } catch (err: any) {
@@ -164,11 +152,9 @@ export default function RoomPage({ params }: { params: { code: string } }) {
       }
     }
 
-    // Set up all realtime subscriptions after we have the room ID
     const setupRealtimeSubscriptions = (roomId: string) => {
       console.log("Setting up realtime subscriptions for room:", roomId)
 
-      // Room users subscription
       const roomUsersSubscription = supabase
         .channel(`room_users:${roomId}`)
         .on(
@@ -181,7 +167,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           },
           (payload) => {
             console.log("Room users change received:", payload)
-            // Fetch latest users
             supabase
               .from("room_users")
               .select("*")
@@ -198,7 +183,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           console.log(`Room users subscription status: ${status}`)
         })
 
-      // Questions subscription
       const questionsSubscription = supabase
         .channel(`question_cards:${roomId}`)
         .on(
@@ -211,7 +195,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           },
           (payload) => {
             console.log("Question cards change received:", payload)
-            // Fetch latest questions
             supabase
               .from("question_cards")
               .select("*")
@@ -220,7 +203,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
                 if (data) {
                   console.log("Updated questions:", data)
                   setQuestions(data)
-                  // Update my questions
                   const myCards = data.filter((q: any) => q.guest_id === guestId)
                   setMyQuestions(myCards)
                 }
@@ -231,7 +213,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           console.log(`Question cards subscription status: ${status}`)
         })
 
-      // Room status subscription
       const roomsSubscription = supabase
         .channel(`rooms:${roomId}`)
         .on(
@@ -247,11 +228,9 @@ export default function RoomPage({ params }: { params: { code: string } }) {
             const newRoomData = payload.new as any
             setRoomData(newRoomData)
 
-            // Check if game status changed to playing
             if (newRoomData.status === "playing" && !gameStarted) {
               setGameStarted(true)
 
-              // Fetch received cards when game starts
               supabase
                 .from("game_sessions")
                 .select("*")
@@ -267,7 +246,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           console.log(`Rooms subscription status: ${status}`)
         })
 
-      // Game sessions subscription
       const gameSessionsSubscription = supabase
         .channel(`game_sessions:${roomId}`)
         .on(
@@ -280,7 +258,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           },
           (payload) => {
             console.log("Game session change received:", payload)
-            // Only update if it's related to current user
             if (payload.new && (payload.new as any).guest_id === guestId) {
               supabase
                 .from("game_sessions")
@@ -297,11 +274,9 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           console.log(`Game sessions subscription status: ${status}`)
         })
 
-      // Set up presence channel for online status
       const presenceChannel = supabase.channel(`presence:${roomId}`)
       presenceChannel
         .on("presence", { event: "sync" }, () => {
-          // You can use this to show who's online
           const state = presenceChannel.presenceState()
           console.log("Presence state:", state)
         })
@@ -320,7 +295,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           }
         })
 
-      // Return cleanup function
       return () => {
         console.log("Cleaning up subscriptions")
         supabase.removeChannel(roomUsersSubscription)
@@ -331,10 +305,8 @@ export default function RoomPage({ params }: { params: { code: string } }) {
       }
     }
 
-    // Initial data fetch
     fetchRoomData()
 
-    // Cleanup function
     return () => {
       if (subscriptionCleanup) {
         subscriptionCleanup()
@@ -346,7 +318,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
     if (!newQuestion.trim() || !roomData || !guestId) return
 
     try {
-      // Check if user already has 3 questions
       if (myQuestions.length >= 3) {
         toast({
           title: "Limit Reached",
@@ -356,7 +327,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
         return
       }
 
-      // Add question to database
       const { data, error } = await supabase
         .from("question_cards")
         .insert({
@@ -368,7 +338,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
 
       if (error) throw error
 
-      // Clear input
       setNewQuestion("")
 
       toast({
@@ -376,7 +345,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
         description: "Your question card has been added to the game",
       })
 
-      // Note: We don't need to manually update state here as the Postgres Changes subscription will handle it
     } catch (err: any) {
       console.error("Error adding question:", err)
       toast({
@@ -391,7 +359,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
     if (!roomData || !isRoomCreator) return
 
     try {
-      // Check if all users have created 3 questions
       const { data: roomUsers, error: usersError } = await supabase
         .from("room_users")
         .select("*")
@@ -406,7 +373,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
 
       if (questionsError) throw questionsError
 
-      // Check if each user has created exactly 3 questions
       const userQuestionCounts: Record<string, number> = {}
       allQuestions.forEach((q: any) => {
         userQuestionCounts[q.guest_id] = (userQuestionCounts[q.guest_id] || 0) + 1
@@ -425,16 +391,13 @@ export default function RoomPage({ params }: { params: { code: string } }) {
         return
       }
 
-      // Update room status
       const { error: updateError } = await supabase.from("rooms").update({ status: "playing" }).eq("id", roomData.id)
 
       if (updateError) throw updateError
 
-      // Distribute cards
       const userIds = roomUsers.map((user: any) => user.guest_id)
       const cardDistribution = distributeCards(allQuestions, userIds)
 
-      // Record card distribution in game_sessions
       const gameSessionRecords = []
 
       for (const [userId, cards] of Object.entries(cardDistribution)) {
@@ -457,7 +420,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
         description: "Cards have been distributed to all players",
       })
 
-      // Note: We don't need to manually update state here as the Postgres Changes subscription will handle it
     } catch (err: any) {
       console.error("Error starting game:", err)
       toast({
@@ -477,7 +439,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
   }
 
   const copyRoomLink = () => {
-    // Get the full URL to the current room
     const roomUrl = `${window.location.origin}/roomss/${roomCode}`
     navigator.clipboard.writeText(roomUrl)
     toast({
@@ -519,7 +480,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
       description: "Your question has been updated",
     })
 
-    // Note: We don't need to manually update state here as the Postgres Changes subscription will handle it
   }
 
   if (error) {
@@ -608,15 +568,12 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           </CardHeader>
           <CardContent>
             <div className="relative w-full aspect-[1/1] max-w-2xl mx-auto bg-green-800 rounded-full border-8 border-brown-800 mb-8 shadow-2xl">
-              {/* Efek cahaya pada meja */}
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-700 to-green-900 opacity-50"></div>
 
-              {/* Meja Casino */}
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-white text-2xl font-bold drop-shadow-lg">{roomCode}</div>
               </div>
 
-              {/* Pemain mengelilingi meja */}
               <div className="absolute inset-0">
                 {users.map((user, index) => {
                   const angle = index * (360 / users.length) * (Math.PI / 180)
@@ -624,7 +581,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
                   const x = 50 + radius * Math.cos(angle)
                   const y = 50 + radius * Math.sin(angle)
 
-                  // Filter kartu untuk pemain ini
                   const playerCards = receivedCards.filter((card) => card.guest_id === user.guest_id)
 
                   return (
@@ -649,7 +605,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
                           {user.guest_id === roomData.created_by ? " (Host)" : ""}
                         </div>
 
-                        {/* Kartu di samping avatar */}
                         {gameStarted && playerCards.length > 0 && (
                           <div
                             className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:scale-110 transition-transform"
@@ -667,9 +622,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
                                 className="object-contain drop-shadow-lg"
                               />
                               <div className="absolute inset-0 flex items-center justify-center">
-                                {/* <span className="text-white font-bold text-sm drop-shadow-md">
                                   {playerCards.length}
-                                </span> */}
                               </div>
                             </div>
                           </div>
@@ -766,7 +719,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
               </div>
             )}
 
-            {/* Dialog untuk menampilkan pertanyaan */}
             <Dialog open={!!selectedCard} onOpenChange={() => setSelectedCard(null)}>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>

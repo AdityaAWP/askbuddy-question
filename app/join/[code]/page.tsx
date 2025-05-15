@@ -23,7 +23,6 @@ export default function JoinRoomWithCodePage({ params }: { params: { code: strin
   const supabase = createClient()
   const roomCode = params.code.toUpperCase()
 
-  // Pre-fill player name if guest user exists
   useEffect(() => {
     const guestUser = getGuestUser()
     if (guestUser) {
@@ -61,21 +60,17 @@ export default function JoinRoomWithCodePage({ params }: { params: { code: strin
     setIsJoining(true)
 
     try {
-      // Create or get guest user
       let guestUser = getGuestUser()
 
       if (!guestUser || guestUser.name !== playerName) {
-        // Create a new guest user with the current name
         guestUser = createGuestUser(playerName)
       }
 
-      // Create form data for server action
       const formData = new FormData()
       formData.append("roomCode", roomCode)
       formData.append("playerName", playerName)
       formData.append("guestId", guestUser.id)
 
-      // Call server action to join room
       const result = await joinRoom(formData)
 
       if (result.error) {

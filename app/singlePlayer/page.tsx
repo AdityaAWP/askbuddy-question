@@ -15,10 +15,9 @@ export default function QuestionList() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fungsi untuk mengambil data pertanyaan
   const fetchQuestions = async (categoryId?: string) => {
     setLoading(true);
-    setError(null); // Reset error sebelum mencoba fetch data
+    setError(null); 
     let url = "/api/questions";
     if (categoryId) {
       url += `?category_id=${categoryId}`;
@@ -34,26 +33,23 @@ export default function QuestionList() {
       const data = await res.json();
       console.log("Fetched questions:", data);
 
-      // Update state dengan data yang diterima
-      setQuestions(data || []); // Pastikan data sudah dalam format array
+      setQuestions(data || []);
     } catch (error) {
       console.error(error);
       setError("Terjadi kesalahan saat mengambil data. Silakan coba lagi.");
-      setQuestions([]); // Set data ke array kosong jika terjadi error
+      setQuestions([]); 
     } finally {
       setLoading(false);
     }
   };
 
-  // Fungsi untuk menangani perubahan filter kategori
   const handleFilterChange = (filters: FilterState) => {
-    const selectedCategoryId = filters.categories[0];  // Ambil kategori pertama yang dipilih
-    fetchQuestions(selectedCategoryId); // Fetch berdasarkan kategori yang dipilih
+    const selectedCategoryId = filters.categories[0];  
+    fetchQuestions(selectedCategoryId);
   };
 
-  // Mengambil data pertanyaan pertama kali saat komponen dimuat
   useEffect(() => {
-    fetchQuestions(); // Fetch semua data untuk tampilan awal
+    fetchQuestions();
   }, []);
 
   return (
@@ -62,13 +58,10 @@ export default function QuestionList() {
       <div className="mt-6">
         <h2 className="text-2xl font-bold mb-4">Daftar Questions</h2>
 
-        {/* Menampilkan loading state */}
         {loading && <p>Loading...</p>}
 
-        {/* Menampilkan error jika ada */}
         {error && <p className="text-red-500">{error}</p>}
 
-        {/* Tabel data */}
         <table className="min-w-full border">
           <thead>
             <tr className="bg-gray-100">

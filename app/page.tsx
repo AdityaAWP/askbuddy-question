@@ -12,9 +12,7 @@ export default function HomePage() {
   return (
     <div>
        <main className="min-h-screen bg-[#004647]">
-      {/* Header */}
       <Header/>
-      {/* Hero Section */}
       <section
         className="bg-red-100 bg-center bg-cover min-h-[100vh]"
         style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.4)),url(${hero.src})` }}
@@ -50,7 +48,6 @@ export default function HomePage() {
         </Link>
       </section>
 
-      {/* About Section */}
       <section className="container mx-auto mb-32 px-4 py-8">
         <div className="grid md:grid-cols-2 gap-8">
           <div className="bg-[#f2efde] p-4 md:p-6 rounded-3xl">

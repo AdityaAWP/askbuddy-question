@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast"
 import PlayerSeat from "@/components/player-seat"
 import PlayerQuestions from "@/components/player-questions"
 
-// Sample players with their questions
 const PLAYERS = [
   {
     name: "Alex",
@@ -53,7 +52,6 @@ const PLAYERS = [
   },
 ]
 
-// Flatten all questions into a single array
 const ALL_QUESTIONS = PLAYERS.flatMap((player) => player.questions)
 
 export default function PreviewPage() {
@@ -64,15 +62,13 @@ export default function PreviewPage() {
   const [showPlayerQuestions, setShowPlayerQuestions] = useState<string | null>(null)
   const { toast } = useToast()
 
-  // Calculate positions for players around the table
   const getPlayerPositions = () => {
     const positions = []
     const totalPlayers = PLAYERS.length
-    const radius = 42 // % from center
+    const radius = 42
 
     for (let i = 0; i < totalPlayers; i++) {
-      // Calculate position around the circle
-      const angle = i * ((2 * Math.PI) / totalPlayers) - Math.PI / 2 // Start from top
+      const angle = i * ((2 * Math.PI) / totalPlayers) - Math.PI / 2 
       const x = 50 + radius * Math.cos(angle)
       const y = 50 + radius * Math.sin(angle)
 
@@ -90,18 +86,16 @@ export default function PreviewPage() {
   const playerPositions = getPlayerPositions()
 
   const startGame = () => {
-    // Deal cards to players (3 random questions to each player)
     const shuffledQuestions = [...ALL_QUESTIONS].sort(() => Math.random() - 0.5)
     const dealt: { [key: string]: string[] } = {}
 
     PLAYERS.forEach((player, index) => {
-      // Each player gets 3 random questions
       dealt[player.name] = shuffledQuestions.slice(index * 3, index * 3 + 3)
     })
 
     setDealtCards(dealt)
     setGameStarted(true)
-    setCurrentPlayerIndex(0) // Start with the first player
+    setCurrentPlayerIndex(0)
 
     toast({
       title: "Game Started!",
@@ -123,21 +117,17 @@ export default function PreviewPage() {
     const playerCards = dealtCards[currentPlayer.name]
 
     if (playerCards && playerCards.length > 0) {
-      // Draw a random card from the current player's hand
       const randomIndex = Math.floor(Math.random() * playerCards.length)
       const question = playerCards[randomIndex]
 
-      // Remove the drawn card from the player's hand
       const updatedCards = { ...dealtCards }
       updatedCards[currentPlayer.name] = playerCards.filter((_, i) => i !== randomIndex)
       setDealtCards(updatedCards)
 
       setCurrentQuestion(question)
 
-      // Move to the next player
       setCurrentPlayerIndex((currentPlayerIndex + 1) % PLAYERS.length)
 
-      // Animate the card flip
       const card = document.getElementById("question-card")
       if (card) {
         card.classList.add("flip")
@@ -157,7 +147,6 @@ export default function PreviewPage() {
         variant: "destructive",
       })
 
-      // Check if any player still has cards
       const anyCardsLeft = Object.values(dealtCards).some((cards) => cards.length > 0)
 
       if (!anyCardsLeft) {
@@ -166,12 +155,10 @@ export default function PreviewPage() {
           description: "All questions have been answered!",
         })
       } else {
-        // Skip to the next player with cards
         let nextPlayerIndex = (currentPlayerIndex + 1) % PLAYERS.length
         while (dealtCards[PLAYERS[nextPlayerIndex].name].length === 0) {
           nextPlayerIndex = (nextPlayerIndex + 1) % PLAYERS.length
 
-          // If we've checked all players and come back to the current one, break
           if (nextPlayerIndex === currentPlayerIndex) {
             break
           }
@@ -192,7 +179,6 @@ export default function PreviewPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white overflow-hidden">
-      {/* Table header */}
       <header className="bg-gray-800 p-4 border-b border-gray-700">
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-xl font-bold">
@@ -220,21 +206,15 @@ export default function PreviewPage() {
         </div>
       </header>
 
-      {/* Game table */}
       <div className="relative w-full" style={{ height: "calc(100vh - 64px)" }}>
-        {/* The table */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="relative w-[95vw] h-[95vw] md:w-[80vw] md:h-[80vw] lg:w-[70vw] lg:h-[70vw] xl:w-[60vw] xl:h-[60vw] max-w-[800px] max-h-[800px]">
-            {/* Outer table border */}
             <div className="absolute inset-0 rounded-full bg-yellow-900 border-8 border-yellow-800"></div>
 
-            {/* Table felt */}
             <div className="absolute inset-[16px] rounded-full bg-green-800 border-4 border-green-900 shadow-inner">
-              {/* Table pattern */}
               <div className="absolute inset-0 rounded-full opacity-10 bg-[radial-gradient(circle,_transparent_20%,_#000_20%,_#000_80%,_transparent_80%,_transparent),radial-gradient(circle,_transparent_20%,_#000_20%,_#000_80%,_transparent_80%,_transparent)_25px_25px,linear-gradient(#000_2px,_transparent_2px)_0_-1px,linear-gradient(90deg,_#000_2px,_transparent_2px)_-1px_0] bg-[length:50px_50px,_50px_50px,_25px_25px,_25px_25px]"></div>
             </div>
 
-            {/* Table center logo/text */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-32 h-32 rounded-full bg-green-700 border-2 border-green-900 flex items-center justify-center z-10">
                 <div className="text-xl font-bold text-yellow-400 text-center">
@@ -243,7 +223,6 @@ export default function PreviewPage() {
               </div>
             </div>
 
-            {/* Card deck - only show before game starts */}
             {!gameStarted && (
               <div className="absolute top-1/2 left-1/2 -translate-x-[80px] -translate-y-[120px] transform rotate-[15deg] z-20">
                 <div className="w-16 h-24 bg-red-600 rounded-lg border-2 border-white shadow-lg flex items-center justify-center">
@@ -252,12 +231,10 @@ export default function PreviewPage() {
               </div>
             )}
 
-            {/* Current question card */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
               <QuestionCard question={currentQuestion} />
             </div>
 
-            {/* Player seats positioned around the table */}
             {playerPositions.map((player, index) => (
               <div key={index} style={{ position: "absolute", left: player.x, top: player.y, zIndex: 40 }}>
                 <PlayerSeat
@@ -270,7 +247,6 @@ export default function PreviewPage() {
               </div>
             ))}
 
-            {/* Player questions popup */}
             {showPlayerQuestions && (
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
                 <PlayerQuestions
@@ -287,7 +263,6 @@ export default function PreviewPage() {
           </div>
         </div>
 
-        {/* Draw card button - always visible at the bottom */}
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-50">
           <Button
             onClick={drawRandomQuestion}
@@ -300,7 +275,6 @@ export default function PreviewPage() {
           </Button>
         </div>
 
-        {/* Game instructions */}
         {!gameStarted && (
           <div className="absolute top-4 left-4 bg-gray-800 border border-gray-700 rounded-lg p-4 shadow-xl max-w-md z-50">
             <h3 className="font-bold text-lg mb-2 text-yellow-400">Game Preview</h3>
@@ -317,7 +291,6 @@ export default function PreviewPage() {
           </div>
         )}
 
-        {/* Game state info */}
         {gameStarted && (
           <div className="absolute top-4 left-4 bg-gray-800 border border-gray-700 rounded-lg p-4 shadow-xl max-w-md z-50">
             <h3 className="font-bold text-lg mb-2 text-green-400">Game In Progress</h3>
